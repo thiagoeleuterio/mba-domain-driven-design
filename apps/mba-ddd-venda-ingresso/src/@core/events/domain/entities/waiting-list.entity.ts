@@ -12,6 +12,11 @@ import {
 } from './waiting-list-entry.entity';
 import { SpotOfferedToWaitingCustomer } from '../events/domain-events/spot-offered-to-waiting-customer.event';
 import { CustomerJoinedWaitingList } from '../events/domain-events/customer-joined-waiting-list.event';
+import {
+  AnyCollection,
+  ICollection,
+  MyCollectionFactory,
+} from '../../../common/domain/my-collection';
 
 export class WaitingListId extends Uuid {}
 
@@ -26,7 +31,7 @@ export class WaitingList extends AggregateRoot {
   id: WaitingListId;
   event_id: EventId;
   section_id: EventSectionId;
-  private _entries: WaitingListEntry[] = [];
+  private _entries: ICollection<WaitingListEntry>;
 
   constructor(props: WaitingListConstructorProps) {
     super();
@@ -42,8 +47,9 @@ export class WaitingList extends AggregateRoot {
       props.section_id instanceof EventSectionId
         ? props.section_id
         : new EventSectionId(props.section_id);
+    this._entries = MyCollectionFactory.create<WaitingListEntry>(this);
     if (props.entries) {
-      this._entries = props.entries;
+      props.entries.forEach((entry) => this._entries.add(entry));
     }
   }
 
@@ -53,7 +59,7 @@ export class WaitingList extends AggregateRoot {
   }
 
   addEntry(customer_id: CustomerId) {
-    const hasPending = this._entries.some(
+    const hasPending = this._entries.find(
       (e) =>
         e.customer_id.equals(customer_id) &&
         e.status === WaitingListEntryStatus.PENDING,
@@ -62,7 +68,7 @@ export class WaitingList extends AggregateRoot {
       throw new Error('Customer already in waiting list');
     }
     const entry = WaitingListEntry.create({ customer_id });
-    this._entries.push(entry);
+    this._entries.add(entry);
     this.addEvent(
       new CustomerJoinedWaitingList(
         this.id,
@@ -92,10 +98,12 @@ export class WaitingList extends AggregateRoot {
     return event;
   }
 
-  get entries(): WaitingListEntry[] {
-    return [...this._entries].sort((a, b) =>
-      a.id.value.localeCompare(b.id.value),
-    ); // simple order by arrival via id
+  get entries(): ICollection<WaitingListEntry> {
+    return this._entries;
+  }
+
+  set entries(entries: AnyCollection<WaitingListEntry>) {
+    this._entries = MyCollectionFactory.createFrom<WaitingListEntry>(entries);
   }
 
   toJSON() {
@@ -103,7 +111,7 @@ export class WaitingList extends AggregateRoot {
       id: this.id.value,
       event_id: this.event_id.value,
       section_id: this.section_id.value,
-      entries: this.entries.map((e) => e.toJSON()),
+      entries: this._entries.map((e) => e.toJSON()),
     };
   }
 }
