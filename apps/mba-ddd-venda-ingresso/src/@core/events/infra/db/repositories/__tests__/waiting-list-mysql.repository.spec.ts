@@ -8,7 +8,10 @@ import {
   CustomerSchema,
   PartnerSchema,
 } from '../../schemas';
-import { WaitingList, WaitingListId } from '../../../../domain/entities/waiting-list.entity';
+import {
+  WaitingList,
+  WaitingListId,
+} from '../../../../domain/entities/waiting-list.entity';
 import { WaitingListMysqlRepository } from '../waiting-list-mysql.repository';
 import { Event } from '../../../../domain/entities/event.entity';
 import { EventMysqlRepository } from '../event-mysql.repository';
